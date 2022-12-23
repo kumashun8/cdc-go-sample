@@ -7,6 +7,10 @@ services:
     environment:
       - POSTGRES_PASSWORD=sample
     volumes:
-      - $PWD/db/postgres.conf:/etc/postgresql/postgresql.conf
+      - ./postgresql/postgresql.conf:/etc/postgresql/postgresql.conf
     ports:
       - 5432:5432
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
