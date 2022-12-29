@@ -2,4 +2,4 @@
 
 以下を参考にCDCをGoで試してみる。
 
-https://dbconvert.com/blog/postgresql-change-data-capture-cdc/
+<https://dbconvert.com/blog/postgresql-change-data-capture-cdc/>
