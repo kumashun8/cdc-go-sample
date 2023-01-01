@@ -1,5 +1,7 @@
 # setupの実行ログ
 
+## logical replication slotの作成
+
 ```sql
 postgres=# SELECT pg_create_logical_replication_slot('replication_slot', 'test_decoding');
 ERROR:  replication slot "replication_slot" already exists
@@ -8,6 +10,11 @@ postgres=# SELECT slot_name, plugin, slot_type, database, active, restart_lsn, c
 ------------------+---------------+-----------+----------+--------+-------------+---------------------
  replication_slot | test_decoding | logical   | postgres | f      | 0/153D818   | 0/153D850
 (1 row)
+```
+
+## 確認用tableの作成
+
+```sql
 
 postgres=# create table kumatable1(
 postgres(# kuma_id serial PRIMARY KEY,
@@ -27,6 +34,12 @@ postgres=# SELECT * FROM pg_publication_tables WHERE pubname='pub';
  pub     | public     | kumatable1 | {kuma_id,kuma_name,role} | 
  pub     | public     | inutable1  | {inu_id,inu_name,role}   | 
 (2 rows)
+
+```
+
+## logical replicationの確認
+
+```sql
 postgres=# INSERT INTO kumatable1 (kuma_id, kuma_name, role)
 postgres-# VALUES(1, 'shirokuma', 'student');
 INSERT 0 1
@@ -49,12 +62,6 @@ postgres=# SELECT * FROM pg_logical_slot_get_changes('replication_slot', NULL, N
  0/15906F8 | 739 | table public.kumatable1: INSERT: kuma_id[integer]:1 kuma_name[character varying]:'shirok
  0/1590818 | 739 | COMMIT 739
 (9 rows)
-
-postgres=# SELECT pg_drop_replication_slot('replication_slot');
- pg_drop_replication_slot 
---------------------------
- 
-(1 row)
 
 postgres=# 
 ```
