@@ -13,10 +13,10 @@ import (
 	"github.com/jackc/pgx/v5/pgproto3"
 )
 
-const CONN = "postgres://postgres:sample@localhost:5432/postgres?sslmode=disable"
+const CONN = "postgres://postgres:sample@localhost:5432/postgres?sslmode=disable&replication=database"
 const SLOT_NAME = "replication_slot"
 const OUTPUT_PLUGIN = "pgoutput"
-const INSERT_TEMPLATE = "create table t (id int, name text);"
+const INSERT_TEMPLATE = "create table if not exists t (id int, name text);"
 
 var Event = struct {
 	Relation string
@@ -34,35 +34,35 @@ func main() {
 
 	// 1. Create table
 	if _, err := conn.Exec(ctx, INSERT_TEMPLATE).ReadAll(); err != nil {
-		fmt.Errorf("failed to create table: %v", err)
+		fmt.Println(fmt.Errorf("failed to create table: %v", err))
 	}
 
 	// 2. Ensure publication exists
 	if _, err := conn.Exec(ctx, "DROP PUBLICATION IF EXISTS pub;").ReadAll(); err != nil {
-		fmt.Errorf("failed to drop publication: %v", err)
+		fmt.Println(fmt.Errorf("failed to drop publication: %v", err))
 	}
 
 	if _, err := conn.Exec(ctx, "CREATE PUBLICATION pub FOR ALL TABLES;").ReadAll(); err != nil {
-		fmt.Errorf("failed to create publication: %v", err)
+		fmt.Println(fmt.Errorf("failed to create publication: %v", err))
 	}
 	// 3. Create temporary replication slot server
 	if _, err = pglogrepl.CreateReplicationSlot(ctx, conn, SLOT_NAME, OUTPUT_PLUGIN, pglogrepl.CreateReplicationSlotOptions{Temporary: true}); err != nil {
-		fmt.Errorf("failed to create a replication slot: %v", err)
+		fmt.Println(fmt.Errorf("failed to create a replication slot: %v", err))
 	}
 
 	// 4. establish connection
 	var msgPointer pglogrepl.LSN
-	pluginArgs := []string{"proto_version: '1'", "publication_names: 'pub'"}
+	pluginArgs := []string{"proto_version '1'", "publication_names 'pub'"}
 	err = pglogrepl.StartReplication(ctx, conn, SLOT_NAME, msgPointer, pglogrepl.StartReplicationOptions{PluginArgs: pluginArgs})
 	if err != nil {
-		fmt.Errorf("failed to establish start replication: %v", err)
+		fmt.Println(fmt.Errorf("failed to establish start replication: %v", err))
 	}
 
 	var pingTime time.Time
 	for ctx.Err() != context.Canceled {
 		if time.Now().After(pingTime) {
 			if err = pglogrepl.SendStandbyStatusUpdate(ctx, conn, pglogrepl.StandbyStatusUpdate{WALWritePosition: msgPointer}); err != nil {
-				fmt.Errorf("failed to send standby update: %v", err)
+				fmt.Println(fmt.Errorf("failed to send standby update: %v", err))
 			}
 			pingTime = time.Now().Add(10 * time.Second)
 		}
@@ -75,7 +75,7 @@ func main() {
 			continue
 		}
 		if err != nil {
-			fmt.Errorf("something went wrong while listening for message: %v", err)
+			fmt.Println(fmt.Errorf("something went wrong while listening for message: %v", err))
 		}
 
 		switch msg := msg.(type) {
@@ -86,12 +86,12 @@ func main() {
 			case pglogrepl.XLogDataByteID:
 				walLog, err := pglogrepl.ParseXLogData(msg.Data[1:])
 				if err != nil {
-					fmt.Errorf("failed to parse logical WAL log: %v", err)
+					fmt.Println(fmt.Errorf("failed to parse logical WAL log: %v", err))
 				}
 
 				var msg pglogrepl.Message
 				if msg, err = pglogrepl.Parse(walLog.WALData); err != nil {
-					fmt.Errorf("failed to parse logical replication message: %v", err)
+					fmt.Println(fmt.Errorf("failed to parse logical replication message: %v", err))
 				}
 				switch m := msg.(type) {
 				case *pglogrepl.RelationMessage:
