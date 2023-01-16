@@ -1,10 +1,10 @@
-up:
+db.up:
 	docker-compose up -d
 
-down:
+db.down:
 	docker-compose down
 
-exec:
+db.exec:
 	docker-compose exec db bash
 
 setup:
