@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -20,9 +21,11 @@ func main() {
 	}
 	defer conn.Close(ctx)
 
-	res, err := conn.Exec(ctx, "SELECT * FROM t;").ReadAll()
-	if err != nil {
-		fmt.Println(err)
+	for i := 0; i < 10; i++ {
+		_, err = conn.Exec(ctx, "INSERT INTO t (id, name) VALUES(1, 'test');").ReadAll()
+		if err != nil {
+			fmt.Println(err)
+		}
+		time.Sleep(time.Second)
 	}
-	fmt.Println(res)
 }

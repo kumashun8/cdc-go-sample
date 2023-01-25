@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 
 	"github.com/jackc/pglogrepl"
@@ -80,51 +79,62 @@ func main() {
 
 		switch msg := msg.(type) {
 		case *pgproto3.CopyData:
-			switch msg.Data[0] {
-			case pglogrepl.PrimaryKeepaliveMessageByteID:
-				fmt.Println("server: confirmed standby")
-			case pglogrepl.XLogDataByteID:
+			if msg.Data[0] == pglogrepl.XLogDataByteID {
 				walLog, err := pglogrepl.ParseXLogData(msg.Data[1:])
 				if err != nil {
 					fmt.Println(fmt.Errorf("failed to parse logical WAL log: %v", err))
 				}
-
 				var msg pglogrepl.Message
 				if msg, err = pglogrepl.Parse(walLog.WALData); err != nil {
 					fmt.Println(fmt.Errorf("failed to parse logical replication message: %v", err))
 				}
-				switch m := msg.(type) {
-				case *pglogrepl.RelationMessage:
-					Event.Columns = []string{}
-					for _, col := range m.Columns {
-						Event.Columns = append(Event.Columns, col.Name)
-					}
-					Event.Relation = m.RelationName
-				case *pglogrepl.InsertMessage:
-					var sb strings.Builder
-					sb.WriteString(fmt.Sprintf("INSERT %s(", Event.Relation))
-					for i := 0; i < len(Event.Columns); i++ {
-						sb.WriteString(fmt.Sprintf("%s: %s", Event.Columns[i], string(m.Tuple.Columns[i].Data)))
-					}
-				case *pglogrepl.UpdateMessage:
-					var sb strings.Builder
-					sb.WriteString(fmt.Sprintf("UPDATE %s(", Event.Relation))
-					for i := 0; i < len(Event.Columns); i++ {
-						sb.WriteString(fmt.Sprintf("%s: %s ", Event.Columns[i], string(m.NewTuple.Columns[i].Data)))
-					}
-					sb.WriteString(")")
-					fmt.Println(sb.String())
-				case *pglogrepl.DeleteMessage:
-					var sb strings.Builder
-					sb.WriteString(fmt.Sprintf("DELETE %s(", Event.Relation))
-					for i := 0; i < len(Event.Columns); i++ {
-						sb.WriteString(fmt.Sprintf("%s: %s ", Event.Columns[i], string(m.OldTuple.Columns[i].Data)))
-					}
-					sb.WriteString(")")
-					fmt.Println(sb.String())
-				case *pglogrepl.TruncateMessage:
-					fmt.Println("ALL GONE (TRUNCATE)")
-				}
+				fmt.Println(msg.Type().String())
+			}
+			switch msg.Data[0] {
+			// case pglogrepl.PrimaryKeepaliveMessageByteID:
+			// fmt.Println("server: confirmed standby")
+			// case pglogrepl.XLogDataByteID:
+			// 	walLog, err := pglogrepl.ParseXLogData(msg.Data[1:])
+			// 	if err != nil {
+			// 		fmt.Println(fmt.Errorf("failed to parse logical WAL log: %v", err))
+			// 	}
+
+			// 	var msg pglogrepl.Message
+			// 	if msg, err = pglogrepl.Parse(walLog.WALData); err != nil {
+			// 		fmt.Println(fmt.Errorf("failed to parse logical replication message: %v", err))
+			// 	}
+			// 	switch m := msg.(type) {
+			// 	case *pglogrepl.RelationMessage:
+			// 		Event.Columns = []string{}
+			// 		for _, col := range m.Columns {
+			// 			Event.Columns = append(Event.Columns, col.Name)
+			// 		}
+			// 		Event.Relation = m.RelationName
+			// 	case *pglogrepl.InsertMessage:
+			// 		var sb strings.Builder
+			// 		sb.WriteString(fmt.Sprintf("INSERT %s(", Event.Relation))
+			// 		for i := 0; i < len(Event.Columns); i++ {
+			// 			sb.WriteString(fmt.Sprintf("%s: %s", Event.Columns[i], string(m.Tuple.Columns[i].Data)))
+			// 		}
+			// 	case *pglogrepl.UpdateMessage:
+			// 		var sb strings.Builder
+			// 		sb.WriteString(fmt.Sprintf("UPDATE %s(", Event.Relation))
+			// 		for i := 0; i < len(Event.Columns); i++ {
+			// 			sb.WriteString(fmt.Sprintf("%s: %s ", Event.Columns[i], string(m.NewTuple.Columns[i].Data)))
+			// 		}
+			// 		sb.WriteString(")")
+			// 		fmt.Println(sb.String())
+			// 	case *pglogrepl.DeleteMessage:
+			// 		var sb strings.Builder
+			// 		sb.WriteString(fmt.Sprintf("DELETE %s(", Event.Relation))
+			// 		for i := 0; i < len(Event.Columns); i++ {
+			// 			sb.WriteString(fmt.Sprintf("%s: %s ", Event.Columns[i], string(m.OldTuple.Columns[i].Data)))
+			// 		}
+			// 		sb.WriteString(")")
+			// 		fmt.Println(sb.String())
+			// 	case *pglogrepl.TruncateMessage:
+			// 		fmt.Println("ALL GONE (TRUNCATE)")
+			// 	}
 			}
 		default:
 			fmt.Printf("recieved unexpected message: %T", msg)
